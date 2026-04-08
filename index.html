@@ -1,0 +1,732 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>석빙고 효율 시뮬레이터</title>
+<style>
+  :root {
+    --bg: #0d1117;
+    --surface: #161b22;
+    --surface2: #21262d;
+    --border: #30363d;
+    --accent: #58a6ff;
+    --accent2: #79c0ff;
+    --ice: #a5d8ff;
+    --ice2: #74c0fc;
+    --cold: #4dabf7;
+    --warn: #f0a742;
+    --danger: #f85149;
+    --success: #3fb950;
+    --text: #e6edf3;
+    --text2: #8b949e;
+    --text3: #6e7681;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: 'Segoe UI','Malgun Gothic',sans-serif; min-height: 100vh; }
+
+  header {
+    background: linear-gradient(135deg,#0d2137 0%,#0d1117 60%);
+    border-bottom: 1px solid var(--border);
+    padding: 28px 40px 22px;
+    position: relative; overflow: hidden;
+  }
+  header::before {
+    content:''; position:absolute; top:-60px; right:-60px;
+    width:300px; height:300px;
+    background:radial-gradient(circle,rgba(88,166,255,0.12) 0%,transparent 70%);
+    pointer-events:none;
+  }
+  header h1 { font-size:2rem; font-weight:700; letter-spacing:-0.5px; }
+  header h1 span { color:var(--ice); }
+  header p { color:var(--text2); margin-top:6px; font-size:0.95rem; }
+
+  .container { max-width:1280px; margin:0 auto; padding:32px 24px; }
+  .grid { display:grid; grid-template-columns:380px 1fr; gap:24px; align-items:start; }
+  @media(max-width:900px){ .grid { grid-template-columns:1fr; } }
+
+  .panel { background:var(--surface); border:1px solid var(--border); border-radius:12px; overflow:hidden; }
+  .panel-header { background:var(--surface2); padding:14px 20px; border-bottom:1px solid var(--border); font-weight:600; font-size:0.9rem; display:flex; align-items:center; gap:8px; }
+  .panel-body { padding:20px; }
+
+  .section-label { font-size:0.72rem; font-weight:700; letter-spacing:1px; text-transform:uppercase; color:var(--text3); margin:18px 0 10px; }
+  .section-label:first-child { margin-top:0; }
+
+  .param-row { margin-bottom:14px; }
+  .param-top { display:flex; justify-content:space-between; align-items:baseline; margin-bottom:6px; }
+  .param-name { font-size:0.88rem; color:var(--text2); }
+  .param-value { font-size:0.9rem; font-weight:700; color:var(--accent2); background:var(--surface2); padding:2px 8px; border-radius:6px; min-width:70px; text-align:center; }
+
+  input[type=range] { -webkit-appearance:none; width:100%; height:5px; background:var(--surface2); border-radius:3px; outline:none; cursor:pointer; border:1px solid var(--border); }
+  input[type=range]::-webkit-slider-thumb { -webkit-appearance:none; width:16px; height:16px; background:var(--accent); border-radius:50%; cursor:pointer; box-shadow:0 0 6px rgba(88,166,255,0.5); }
+
+  .result-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:20px; }
+  .result-card { background:var(--surface2); border:1px solid var(--border); border-radius:10px; padding:14px 16px; text-align:center; }
+  .result-card .label { font-size:0.75rem; color:var(--text3); margin-bottom:6px; }
+  .result-card .value { font-size:1.6rem; font-weight:800; line-height:1; }
+  .result-card .unit { font-size:0.78rem; color:var(--text2); margin-top:3px; }
+  .v-ice { color:var(--ice); } .v-warm { color:var(--warn); } .v-good { color:var(--success); } .v-bad { color:var(--danger); }
+
+  .eff-bar-wrap { background:var(--surface2); border-radius:6px; height:12px; overflow:hidden; margin-top:8px; border:1px solid var(--border); }
+  .eff-bar { height:100%; border-radius:6px; transition:width 0.6s ease,background 0.6s; }
+
+  .season-row { display:flex; gap:8px; flex-wrap:wrap; margin-top:12px; }
+  .season-badge { padding:5px 12px; border-radius:20px; font-size:0.78rem; font-weight:600; border:1px solid var(--border); background:var(--surface2); }
+
+  .tabs { display:flex; gap:4px; margin-bottom:16px; }
+  .tab { padding:7px 14px; border-radius:6px; font-size:0.82rem; font-weight:600; cursor:pointer; border:1px solid transparent; color:var(--text2); background:transparent; flex:none; }
+  .tab.active { background:var(--surface2); border-color:var(--border); color:var(--text); }
+  .tab-content { display:none; }
+  .tab-content.active { display:block; }
+
+  .tip { font-size:0.78rem; color:var(--text3); margin-top:4px; }
+  hr.divider { border:none; border-top:1px solid var(--border); margin:16px 0; }
+
+  .principle-list { list-style:none; }
+  .principle-list li { padding:10px 12px; border-radius:8px; background:var(--surface2); border-left:3px solid var(--accent); margin-bottom:8px; font-size:0.85rem; line-height:1.6; color:var(--text2); }
+  .principle-list li strong { color:var(--text); display:block; margin-bottom:2px; }
+
+  .btn-group { display:flex; gap:8px; margin-top:16px; }
+  button { flex:1; padding:10px; border:1px solid var(--border); border-radius:8px; background:var(--surface2); color:var(--text); cursor:pointer; font-size:0.85rem; font-weight:600; transition:all 0.15s; }
+  button:hover { background:var(--border); }
+  button.primary { background:var(--accent); color:#0d1117; border-color:var(--accent); }
+  button.primary:hover { background:var(--accent2); }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>🧊 <span>석빙고</span> 효율 시뮬레이터</h1>
+  <p>조선시대 천연 냉장고 — 구조 파라미터를 조절해 얼음 보존 기간을 탐구하세요</p>
+</header>
+
+<div class="container">
+<div class="grid">
+
+<!-- 파라미터 -->
+<div>
+  <div class="panel">
+    <div class="panel-header">⚙️ 구조 파라미터</div>
+    <div class="panel-body">
+
+      <div class="section-label">📐 치수</div>
+
+      <div class="param-row">
+        <div class="param-top"><span class="param-name">지하 매설 깊이</span><span class="param-value" id="v-depth">3.0 m</span></div>
+        <input type="range" id="s-depth" min="1" max="8" step="0.5" value="3">
+        <div class="tip">깊을수록 지온 안정 ↑, 여름 지표열 차단 ↑</div>
+      </div>
+
+      <div class="param-row">
+        <div class="param-top"><span class="param-name">벽 두께 (화강암)</span><span class="param-value" id="v-wall">1.0 m</span></div>
+        <input type="range" id="s-wall" min="0.3" max="2.5" step="0.1" value="1.0">
+        <div class="tip">두꺼울수록 단열 ↑ (열전도율 2.8 W/m·K)</div>
+      </div>
+
+      <div class="param-row">
+        <div class="param-top"><span class="param-name">내부 용적</span><span class="param-value" id="v-vol">200 m³</span></div>
+        <input type="range" id="s-vol" min="20" max="600" step="10" value="200">
+        <div class="tip">크면 표면적/용적 비율 ↓ → 열 침투율 ↓</div>
+      </div>
+
+      <div class="param-row">
+        <div class="param-top"><span class="param-name">아치 높이 비율</span><span class="param-value" id="v-arch">0.45</span></div>
+        <input type="range" id="s-arch" min="0.2" max="0.7" step="0.05" value="0.45">
+        <div class="tip">0.4~0.5 최적 — 냉기 하강 순환 극대화</div>
+      </div>
+
+      <hr class="divider">
+      <div class="section-label">🌿 재료 & 단열</div>
+
+      <div class="param-row">
+        <div class="param-top"><span class="param-name">환기 구멍 수 (천장)</span><span class="param-value" id="v-vent">3 개</span></div>
+        <input type="range" id="s-vent" min="0" max="8" step="1" value="3">
+        <div class="tip">홀수 3~5개 최적, 너무 많으면 열 역류</div>
+      </div>
+
+      <div class="param-row">
+        <div class="param-top"><span class="param-name">왕겨 단열층 두께</span><span class="param-value" id="v-hull">15 cm</span></div>
+        <input type="range" id="s-hull" min="0" max="50" step="1" value="15">
+        <div class="tip">왕겨: 열전도율 ≈ 0.055 W/m·K</div>
+      </div>
+
+      <div class="param-row">
+        <div class="param-top"><span class="param-name">외부 토층 두께 (흙 덮개)</span><span class="param-value" id="v-soil">80 cm</span></div>
+        <input type="range" id="s-soil" min="20" max="200" step="5" value="80">
+        <div class="tip">흙: 열전도율 ≈ 0.5 W/m·K</div>
+      </div>
+
+      <hr class="divider">
+      <div class="section-label">🌡️ 환경</div>
+
+      <div class="param-row">
+        <div class="param-top"><span class="param-name">입고 시 얼음 온도</span><span class="param-value" id="v-icetemp">−3 °C</span></div>
+        <input type="range" id="s-icetemp" min="-15" max="0" step="1" value="-3">
+      </div>
+
+      <div class="param-row">
+        <div class="param-top"><span class="param-name">지역 (여름 기후 기준)</span><span class="param-value" id="v-region">서울</span></div>
+        <input type="range" id="s-region" min="0" max="4" step="1" value="1">
+      </div>
+
+      <div class="param-row" style="margin-top: 12px; border-top: 1px dashed var(--border); padding-top: 12px;">
+        <div class="param-top"><span class="param-name">외부 풍속 (계곡풍)</span><span class="param-value" id="v-wind">2.2 m/s</span></div>
+        <input type="range" id="s-wind" min="0.0" max="5.0" step="0.1" value="2.2">
+        <div class="tip">베르누이 효과에 의한 환기량을 결정합니다.</div>
+      </div>
+
+      <div class="param-row">
+        <div class="param-top"><span class="param-name">여름철 상대습도</span><span class="param-value" id="v-humidity">78 %</span></div>
+        <input type="range" id="s-humidity" min="40" max="100" step="1" value="78">
+        <div class="tip">습도가 높으면 수증기가 얼음에 맺혀 막대한 잠열을 뿜어냅니다.</div>
+      </div>
+
+      <div class="btn-group">
+        <button class="primary" onclick="simulate()">🔄 시뮬레이션</button>
+        <button onclick="resetDefaults()">↩ 기본값</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel" style="margin-top:16px;">
+    <div class="panel-header">📚 석빙고의 과학적 원리</div>
+    <div class="panel-body">
+      <ul class="principle-list">
+        <li><strong>🌀 아치형 천장 — 냉기 순환</strong>찬 공기는 아래로 가라앉고 더운 공기는 위로 올라가 환기 구멍으로 빠져나갑니다.</li>
+        <li><strong>🪨 화강암 — 열용량 버퍼</strong>비열이 높아 외부 온도 변화를 흡수하고 천천히 방출 — 일교차를 평탄화합니다.</li>
+        <li><strong>🌾 왕겨 단열</strong>공기 함유율이 높아 열전도율이 매우 낮습니다. 얼음과 돌벽 사이 직접 열전달 차단.</li>
+        <li><strong>⛰️ 지하 매설</strong>지하 3m 이하는 연중 12~15°C 유지(한국). 여름 지표열이 내부 도달을 수개월 지연.</li>
+        <li><strong>💧 배수로 설계</strong>바닥 경사로 녹은 물 즉시 배출 — 수분에 의한 열전달 가속 방지.</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<!-- 결과 -->
+<div>
+  <div class="panel" style="margin-bottom:16px;">
+    <div class="panel-header">🏛️ 단면 구조 시각화</div>
+    <div class="panel-body" style="padding:12px;">
+      <canvas id="structure-canvas" style="width:100%;border-radius:8px;background:var(--surface2);display:block;"></canvas>
+    </div>
+  </div>
+
+  <div class="panel" style="margin-bottom:16px;">
+    <div class="panel-header">📊 시뮬레이션 결과</div>
+    <div class="panel-body">
+      <div class="result-grid">
+        <div class="result-card">
+          <div class="label">얼음 보존 기간</div>
+          <div class="value v-ice" id="r-days">—</div>
+          <div class="unit">일 (days)</div>
+        </div>
+        <div class="result-card">
+          <div class="label">내부 유지 온도 (여름)</div>
+          <div class="value v-warm" id="r-temp">—</div>
+          <div class="unit">°C</div>
+        </div>
+        <div class="result-card">
+          <div class="label">열유속 (벽 통과)</div>
+          <div class="value" id="r-flux">—</div>
+          <div class="unit">W/m²</div>
+        </div>
+        <div class="result-card">
+          <div class="label">종합 효율 점수</div>
+          <div class="value" id="r-score">—</div>
+          <div class="unit">/ 100점</div>
+        </div>
+      </div>
+
+      <div style="font-size:0.82rem;color:var(--text2);margin-bottom:6px;">종합 효율</div>
+      <div class="eff-bar-wrap"><div class="eff-bar" id="eff-bar" style="width:0%"></div></div>
+
+      <div id="verdict" style="margin-top:14px;padding:12px 14px;border-radius:8px;font-size:0.87rem;line-height:1.6;background:var(--surface2);border:1px solid var(--border);"></div>
+      <div class="season-row" id="season-row"></div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-header">📈 시간별 분석</div>
+    <div class="panel-body">
+      <div class="tabs">
+        <button class="tab active" onclick="switchTab('tab-chart',this)">온도 변화 추이</button>
+        <button class="tab" onclick="switchTab('tab-compare',this)">파라미터 민감도</button>
+        <button class="tab" onclick="switchTab('tab-history',this)">역사적 기록</button>
+      </div>
+
+      <div class="tab-content active" id="tab-chart">
+        <canvas id="chart-canvas" style="width:100%;display:block;background:var(--surface2);border-radius:8px;"></canvas>
+      </div>
+      <div class="tab-content" id="tab-compare">
+        <canvas id="compare-canvas" style="width:100%;display:block;background:var(--surface2);border-radius:8px;"></canvas>
+      </div>
+      <div class="tab-content" id="tab-history">
+        <ul class="principle-list">
+          <li><strong>경주 석빙고 (1738년, 보물 66호)</strong>길이 12.7m, 폭 5.76m, 내부 높이 5.4m. 천장 3개 환기공. 12~1월 채빙 후 7~8월까지 유지.</li>
+          <li><strong>안동 석빙고 (1738년)</strong>지하 4m 매설, 왕겨+볏짚 단열. 6월 초 행사까지 얼음 공급 기록.</li>
+          <li><strong>현풍 석빙고 (1730년)</strong>하천 옆 입지로 습도 조절. 외기 35°C에서도 내부 8°C 유지 추정.</li>
+          <li><strong>조선 빙고령 (규정)</strong>동빙고(궁중 제사·의료용), 서빙고(관료 지급). 연간 130,000개 이상 얼음 저장.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+</div>
+</div>
+
+<script>
+const REGIONS = [
+  {name:'평양', summerAvg:27.5, groundTemp:11, wind:1.5, humidity:75},
+  {name:'서울', summerAvg:29.5, groundTemp:13, wind:2.2, humidity:78},
+  {name:'대전', summerAvg:30.5, groundTemp:14, wind:1.8, humidity:76},
+  {name:'경주', summerAvg:31.5, groundTemp:15, wind:2.0, humidity:72},
+  {name:'안동', summerAvg:30.0, groundTemp:14, wind:1.7, humidity:74},
+];
+const K_GRANITE=2.8, K_CHAFF=0.055, K_SOIL=0.5;
+
+const paramDefs = {
+  depth:   {el:'s-depth',   lbl:'v-depth',   fmt:v=>`${v} m`},
+  wall:    {el:'s-wall',    lbl:'v-wall',     fmt:v=>`${parseFloat(v).toFixed(1)} m`},
+  vol:     {el:'s-vol',     lbl:'v-vol',      fmt:v=>`${v} m³`},
+  arch:    {el:'s-arch',    lbl:'v-arch',     fmt:v=>`${parseFloat(v).toFixed(2)}`},
+  vent:    {el:'s-vent',    lbl:'v-vent',     fmt:v=>`${v} 개`},
+  hull:    {el:'s-hull',    lbl:'v-hull',     fmt:v=>`${v} cm`},
+  soil:    {el:'s-soil',    lbl:'v-soil',     fmt:v=>`${v} cm`},
+  icetemp: {el:'s-icetemp', lbl:'v-icetemp',  fmt:v=>`${v>=0?'+':''}${v} °C`},
+  region:  {el:'s-region',  lbl:'v-region',   fmt:v=>REGIONS[v].name},
+  wind:    {el:'s-wind',    lbl:'v-wind',     fmt:v=>`${parseFloat(v).toFixed(1)} m/s`},
+  humidity:{el:'s-humidity',lbl:'v-humidity', fmt:v=>`${v} %`},
+};
+
+// 지역 변경 시 해당 지역의 풍속/습도 기본값 자동 반영
+document.getElementById('s-region').addEventListener('change', (e) => {
+  const r = REGIONS[e.target.value];
+  document.getElementById('s-wind').value = r.wind;
+  document.getElementById('s-humidity').value = r.humidity;
+  document.getElementById('v-wind').textContent = paramDefs.wind.fmt(r.wind);
+  document.getElementById('v-humidity').textContent = paramDefs.humidity.fmt(r.humidity);
+  simulate();
+});
+
+// 모든 슬라이더(input)를 움직일 때마다 텍스트 값을 바꾸고 시뮬레이션을 재실행하는 코드
+Object.keys(paramDefs).forEach(key => {
+  const p = paramDefs[key];
+  const el = document.getElementById(p.el);
+  if (!el || key === 'region') return; // region은 위에서 따로 처리하므로 제외
+  
+  el.addEventListener('input', (e) => {
+    // 슬라이더 옆의 텍스트 값 업데이트
+    document.getElementById(p.lbl).textContent = p.fmt(e.target.value);
+    // 시뮬레이션 즉시 재실행
+    simulate();
+  });
+});
+
+function gv(key){ return parseFloat(document.getElementById(paramDefs[key].el).value); }
+
+function calcThermal(){
+  const depth=gv('depth'), wall=gv('wall'), vol=gv('vol'), arch=gv('arch');
+  const vent=gv('vent'), hull=gv('hull')/100, soil=gv('soil')/100;
+  const icetemp=gv('icetemp');
+  const ri=parseInt(document.getElementById(paramDefs.region.el).value);
+  const region=REGIONS[ri];
+  
+  // 새로 추가된 UI 변수 가져오기
+  const wind = gv('wind'); 
+  const humidity = gv('humidity');
+
+  // 1. 기하학 및 단열 저항 계산
+  const R=Math.cbrt(vol*3/(4*Math.PI));
+  const area=4*Math.PI*R*R;
+  const R_total=wall/K_GRANITE + hull/K_CHAFF + soil/K_SOIL;
+
+  const dampingDepth=3.0;
+  const attAmp=(region.summerAvg-region.groundTemp)*Math.exp(-depth/dampingDepth);
+  const T_outside_base=region.groundTemp+attAmp*0.8;
+
+  // 2. 동적 시뮬레이션 초기 세팅
+  const initialIceMass = vol * 0.6 * 900;
+  let currentIceMass = initialIceMass;
+  let currentIceTemp = icetemp;
+  
+  const timeStep = 3600; // 1시간 (초 단위)
+  const maxHours = 365 * 24; // 최대 1년 시뮬레이션
+  let hour = 0;
+  let avgHeatFlux = 0;
+
+  // 3. 시간 단위 물리 엔진 루프 (Euler Method)
+  for(; hour < maxHours; hour++) {
+      // (가정) 여름철 기온은 일정하다고 단순화
+      let T_out = T_outside_base; 
+      // 내부 얼음 주변 온도는 0도 근처, 상층부로 갈수록 약간 상승
+      let T_in = 2.0; 
+
+      // ① 복합벽체 전도 열량 (W)
+      let q_cond = (T_out - T_in) / R_total * area;
+
+      // ② 베르누이 풍압 환기에 의한 외부 공기 유입량
+      let ventArea = vent * 0.12; 
+      let Q_wind_vol = 0.4 * ventArea * wind; 
+
+      // 들어온 공기가 가진 총 열기 (현열 + 습도에 의한 잠열)
+      let q_vent_base = Q_wind_vol * 1.2 * 1004 * Math.max(0, T_out - T_in); 
+      let latentFactor = (humidity / 100) * 0.08; 
+      let q_latent_base = Q_wind_vol * latentFactor * 2500000;
+      let q_incoming_total = q_vent_base + q_latent_base;
+
+      // 🚨 [핵심 수정] 성층화(Stratification) 및 혼합 계수 적용
+      // 외부 공기가 하층부의 얼음과 얼마나 섞이는지, 그리고 갇힌 열이 얼마나 무서운지 계산
+      let mixingFactor = 0;
+      let trappedHeat = 0;
+
+      if (vent === 0) {
+          // ❌ 환기구가 없으면: 지붕을 뚫고 온 열기가 천장에 갇혀 거대한 오븐처럼 변함
+          trappedHeat = q_cond * 15.0; // 갇힌 열 페널티 15배 (얼음 직격)
+          mixingFactor = 0;
+      } else if (vent < 3) {
+          // 🔺 환기구 1~2개: 열기가 다 빠져나가지 못하고 고임
+          trappedHeat = q_cond * (3 - vent) * 4.0;
+          mixingFactor = 0.01 * vent; // 1~2% 정도 섞임
+      } else if (vent === 3) {
+          // ✅ 황금비율 (3개): 갇힌 열은 전부 빠져나가고, 외부 공기는 하단 얼음과 거의 안 섞임
+          trappedHeat = 0;
+          mixingFactor = 0.02; // 단 2%만 얼음에 영향을 줌
+      } else {
+          // ❌ 환기구 4개 이상: 과도한 바람이 내부 기류를 망가뜨려 더운 공기가 얼음층으로 들이침
+          trappedHeat = 0;
+          mixingFactor = 0.02 + (vent - 3) * 0.15; // 구멍이 많을수록 기하급수적으로 섞여버림
+      }
+
+      // 최종적으로 얼음에 꽂히는 환기/잠열 데미지
+      let q_vent = q_incoming_total * mixingFactor;
+
+      // 아치 천장의 순환 효율 기하학적 가중치
+      const archOpt = Math.max(0, 1 - Math.abs(arch - 0.45) * 6);
+      const archFactor = 1 - archOpt * 0.08;
+
+      // 이번 1시간 동안 얼음을 공격한 총 열량(W)
+      let totalPower = (q_cond + q_vent + trappedHeat) * archFactor;
+      avgHeatFlux += totalPower / area;
+      
+      // 이번 1시간 동안 침투한 총 에너지(Joule)
+      let energyThisHour = totalPower * timeStep;
+
+      // 얼음 현열(데워짐) 계산
+      if (currentIceTemp < 0) {
+          let sensibleCap = currentIceMass * 2090; // 얼음 비열
+          let tempRise = energyThisHour / sensibleCap;
+          currentIceTemp += tempRise;
+          
+          if (currentIceTemp > 0) {
+              energyThisHour = currentIceTemp * sensibleCap; // 남은 에너지는 녹는 데 쓰임
+              currentIceTemp = 0;
+          } else {
+              energyThisHour = 0; 
+          }
+      }
+
+      // 얼음 잠열(녹음) 계산
+      if (currentIceTemp >= 0 && energyThisHour > 0) {
+          let meltedMass = energyThisHour / 334000; // 물의 융해잠열
+          currentIceMass -= meltedMass;
+      }
+
+      // 얼음이 다 녹으면 루프 즉시 탈출!
+      if (currentIceMass <= 0) break;
+  }
+
+  // 4. 최종 결과 반환
+  const days = hour / 24;
+  const heatFlux = hour > 0 ? (avgHeatFlux / hour) : 0;
+  const power = heatFlux * area;
+  const T_internal = T_outside_base * 0.3; // UI 표기용 근사치
+
+  return {days, heatFlux, T_internal, power, R_total, area, iceMass: initialIceMass, T_outside: T_outside_base, region};
+}
+
+function calcScore(res){
+  let s=0;
+  const d=res.days;
+  if(d>=365)s=100;
+  else if(d>=270)s=85+(d-270)/95*15;
+  else if(d>=180)s=65+(d-180)/90*20;
+  else if(d>=120)s=40+(d-120)/60*25;
+  else if(d>=60)s=20+(d-60)/60*20;
+  else s=Math.max(0,d/60*20);
+  return Math.min(100,Math.round(s));
+}
+
+function simulate(){
+  const res=calcThermal();
+  const score=calcScore(res);
+  const days=Math.round(res.days);
+
+  document.getElementById('r-days').textContent=days;
+  document.getElementById('r-temp').textContent=res.T_internal.toFixed(1);
+  document.getElementById('r-flux').textContent=res.heatFlux.toFixed(2);
+  document.getElementById('r-score').textContent=score;
+
+  const scoreEl=document.getElementById('r-score');
+  scoreEl.className='value '+(score>=75?'v-good':score>=50?'v-ice':score>=30?'v-warm':'v-bad');
+
+  const bar=document.getElementById('eff-bar');
+  bar.style.width=score+'%';
+  bar.style.background=score>=75?'linear-gradient(90deg,#3fb950,#58d68d)':score>=50?'linear-gradient(90deg,#4dabf7,#74c0fc)':score>=30?'linear-gradient(90deg,#f0a742,#ffc107)':'linear-gradient(90deg,#f85149,#ff6b6b)';
+
+  let vt='';
+  if(days>=365)vt=`✅ <strong>완벽한 설계!</strong> 1년 이상 얼음 보존 — 조선 최고급 석빙고 수준.`;
+  else if(days>=270)vt=`🔵 <strong>우수.</strong> 약 ${days}일 — 다음 해 10월까지 유지 가능합니다.`;
+  else if(days>=180)vt=`🟡 <strong>양호.</strong> 약 ${days}일 — 여름 6개월을 버팁니다.`;
+  else if(days>=90)vt=`🟠 <strong>보통.</strong> 약 ${days}일 — 초여름까지만 얼음이 있습니다.`;
+  else vt=`🔴 <strong>개선 필요.</strong> 약 ${days}일 — 깊이↑, 왕겨↑, 벽두께↑를 권장합니다.`;
+  document.getElementById('verdict').innerHTML=vt;
+
+  const seasons=[
+    {label:'❄️ 1-2월 채빙',ok:true},
+    {label:'🌸 봄 (3-5월)',ok:days>60},
+    {label:'☀️ 초여름 (6월)',ok:days>120},
+    {label:'🌊 한여름 (7-8월)',ok:days>210},
+    {label:'🍁 가을 (9-10월)',ok:days>270},
+    {label:'🌨️ 초겨울 (11-12월)',ok:days>330},
+  ];
+  document.getElementById('season-row').innerHTML=seasons.map(s=>
+    `<span class="season-badge" style="color:${s.ok?'var(--success)':'var(--danger)'};border-color:${s.ok?'#238636':'#da3633'}">${s.ok?'✓':'✗'} ${s.label}</span>`
+  ).join('');
+
+  drawStructure(res);
+  drawChart(res);
+  if(document.getElementById('tab-compare').classList.contains('active')) drawCompare();
+}
+
+function drawStructure(res){
+  const canvas=document.getElementById('structure-canvas');
+  const W=canvas.offsetWidth||500;
+  canvas.width=W; canvas.height=240;
+  const ctx=canvas.getContext('2d');
+  ctx.clearRect(0,0,W,240);
+
+  const wall=gv('wall'), hull=gv('hull'), soil=gv('soil'), depth=gv('depth'), arch=gv('arch');
+  const vent=parseInt(document.getElementById(paramDefs.vent.el).value);
+
+  const groundY=55;
+  ctx.fillStyle='#1a3a2a'; ctx.fillRect(0,0,W,groundY);
+  ctx.fillStyle='#0d2137'; ctx.fillRect(0,groundY,W,240);
+
+  ctx.strokeStyle='#3fb950'; ctx.lineWidth=1.5; ctx.setLineDash([6,4]);
+  ctx.beginPath(); ctx.moveTo(0,groundY); ctx.lineTo(W,groundY); ctx.stroke();
+  ctx.setLineDash([]);
+
+  const soilPx=Math.min(soil/200*55,38);
+  ctx.fillStyle='#5a3e28';
+  ctx.fillRect(W*0.14,groundY-soilPx,W*0.72,soilPx);
+
+  const cx=W/2, by=215, bw=W*0.56, bh=115;
+  const archH=bh*arch;
+  const wallPx=wall/2.5*18;
+  const hullPx=hull/50*10;
+
+  ctx.fillStyle='#555';
+  ctx.beginPath();
+  ctx.moveTo(cx-bw/2-wallPx,by);
+  ctx.lineTo(cx-bw/2-wallPx,by-bh*0.5);
+  ctx.quadraticCurveTo(cx,by-bh-archH-wallPx*1.5,cx+bw/2+wallPx,by-bh*0.5);
+  ctx.lineTo(cx+bw/2+wallPx,by);
+  ctx.closePath(); ctx.fill();
+
+  ctx.fillStyle='#a07840';
+  ctx.beginPath();
+  ctx.moveTo(cx-bw/2-wallPx+4,by-2);
+  ctx.lineTo(cx-bw/2-wallPx+4,by-bh*0.5);
+  ctx.quadraticCurveTo(cx,by-bh-archH-wallPx+hullPx+4,cx+bw/2+wallPx-4,by-bh*0.5);
+  ctx.lineTo(cx+bw/2+wallPx-4,by-2);
+  ctx.closePath(); ctx.fill();
+
+  ctx.fillStyle='#0d2850';
+  ctx.beginPath();
+  ctx.moveTo(cx-bw/2,by);
+  ctx.lineTo(cx-bw/2,by-bh*0.5);
+  ctx.quadraticCurveTo(cx,by-bh-archH,cx+bw/2,by-bh*0.5);
+  ctx.lineTo(cx+bw/2,by);
+  ctx.closePath(); ctx.fill();
+
+  const iceColors=['#a5d8ff','#74c0fc','#4dabf7'];
+  for(let r=0;r<3;r++){
+    for(let c=0;c<5;c++){
+      const ix=cx-bw/2+15+c*(bw-30)/5;
+      const iy=by-14-r*16;
+      if(iy<by-bh*0.6) continue;
+      ctx.fillStyle=iceColors[r%3]; ctx.globalAlpha=0.75;
+      ctx.fillRect(ix,iy,(bw-30)/5-4,12);
+      ctx.globalAlpha=1;
+      ctx.strokeStyle='#228be6'; ctx.lineWidth=0.5;
+      ctx.strokeRect(ix,iy,(bw-30)/5-4,12);
+    }
+  }
+
+  const topY=by-bh-archH-wallPx/2;
+  for(let i=0;i<Math.min(vent,6);i++){
+    const vx=cx+(i-Math.floor(Math.min(vent,6)/2))*28;
+    ctx.fillStyle='#0d1117';
+    ctx.beginPath(); ctx.ellipse(vx,topY+2,5,8,0,0,Math.PI*2); ctx.fill();
+    ctx.strokeStyle='#74c0fc'; ctx.lineWidth=1; ctx.globalAlpha=0.5;
+    ctx.beginPath(); ctx.moveTo(vx,topY-4); ctx.lineTo(vx,topY-16); ctx.stroke();
+    ctx.globalAlpha=1;
+  }
+
+  ctx.strokeStyle='#228be6'; ctx.lineWidth=1.5;
+  ctx.beginPath(); ctx.moveTo(cx-bw/2+5,by-3); ctx.lineTo(cx+bw/2-5,by-3); ctx.stroke();
+
+  ctx.font='11px sans-serif';
+  ctx.fillStyle='#8b949e'; ctx.fillText(`↕ 지하 ${depth}m`,8,groundY+16);
+  ctx.fillStyle='#3fb950'; ctx.fillText('지표면',8,groundY-5);
+  ctx.fillStyle='#74c0fc'; ctx.fillText('🧊 얼음',cx-14,by-6);
+  ctx.fillStyle='#aaa'; ctx.fillText('화강암',cx+bw/2+wallPx+6,by-bh*0.35);
+  ctx.fillStyle='#a07840'; ctx.fillText('왕겨',cx+bw/2+wallPx+6,by-bh*0.2);
+}
+
+function drawChart(res){
+  const canvas=document.getElementById('chart-canvas');
+  const W=canvas.offsetWidth||680;
+  canvas.width=W; canvas.height=220;
+  const ctx=canvas.getContext('2d');
+  ctx.clearRect(0,0,W,220);
+
+  const pad={l:46,r:16,t:16,b:36};
+  const cw=W-pad.l-pad.r, ch=220-pad.t-pad.b;
+
+  const ri=parseInt(document.getElementById(paramDefs.region.el).value);
+  const R=REGIONS[ri];
+  const monthlyExt=[-3,-1,5,13,18,23,28,R.summerAvg,23,16,8,0];
+
+  const wall=gv('wall'),hull=gv('hull')/100,soil=gv('soil')/100,depth=gv('depth'),vent=gv('vent'),arch=gv('arch');
+  const R_total=wall/K_GRANITE+hull/K_CHAFF+soil/K_SOIL;
+
+  const monthlyInt=monthlyExt.map((ext,i)=>{
+    const amp=(ext-R.groundTemp)*Math.exp(-depth/3.0);
+    const T_out=R.groundTemp+amp*0.8;
+    const vf=vent===0?1.15:vent<=3?0.88:vent<=5?0.92:0.98+(vent-5)*0.04;
+    const af=1-(Math.max(0,1-Math.abs(arch-0.45)*6))*0.08;
+    const dayOfYear=i*30;
+    if(dayOfYear>res.days+30) return T_out*0.7;
+    return Math.max(-5,(T_out*0.25+(-2)*0.75)*vf*af);
+  });
+
+  const minT=-10,maxT=35,dT=maxT-minT;
+
+  [0,10,20,30].forEach(t=>{
+    const y=pad.t+ch*(1-(t-minT)/dT);
+    ctx.strokeStyle='#30363d'; ctx.lineWidth=1;
+    ctx.beginPath(); ctx.moveTo(pad.l,y); ctx.lineTo(pad.l+cw,y); ctx.stroke();
+    ctx.fillStyle='#6e7681'; ctx.font='10px sans-serif'; ctx.textAlign='right';
+    ctx.fillText(t+'°',pad.l-4,y+4);
+  });
+
+  const y0=pad.t+ch*(1-(0-minT)/dT);
+  ctx.strokeStyle='#4dabf7'; ctx.lineWidth=1; ctx.setLineDash([4,3]);
+  ctx.beginPath(); ctx.moveTo(pad.l,y0); ctx.lineTo(pad.l+cw,y0); ctx.stroke();
+  ctx.setLineDash([]);
+
+  const months=['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'];
+  months.forEach((m,i)=>{
+    const x=pad.l+(i+0.5)*cw/12;
+    ctx.fillStyle='#6e7681'; ctx.font='9px sans-serif'; ctx.textAlign='center';
+    ctx.fillText(m,x,220-pad.b+14);
+  });
+
+  ctx.strokeStyle='#f0a742'; ctx.lineWidth=2;
+  ctx.beginPath();
+  monthlyExt.forEach((t,i)=>{
+    const x=pad.l+(i+0.5)*cw/12, y=pad.t+ch*(1-(t-minT)/dT);
+    i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
+  }); ctx.stroke();
+
+  ctx.strokeStyle='#4dabf7'; ctx.lineWidth=2.5;
+  ctx.beginPath();
+  monthlyInt.forEach((t,i)=>{
+    const x=pad.l+(i+0.5)*cw/12, y=pad.t+ch*(1-(t-minT)/dT);
+    i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
+  }); ctx.stroke();
+
+  ctx.textAlign='left';
+  ctx.fillStyle='#f0a742'; ctx.fillRect(pad.l+4,pad.t+4,12,4);
+  ctx.fillStyle='#8b949e'; ctx.font='11px sans-serif'; ctx.fillText('외부 기온',pad.l+20,pad.t+11);
+  ctx.fillStyle='#4dabf7'; ctx.fillRect(pad.l+90,pad.t+4,12,4);
+  ctx.fillText('석빙고 내부',pad.l+106,pad.t+11);
+}
+
+function drawCompare(){
+  const canvas=document.getElementById('compare-canvas');
+  const W=canvas.offsetWidth||680;
+  canvas.width=W; canvas.height=220;
+  const ctx=canvas.getContext('2d');
+  ctx.clearRect(0,0,W,220);
+
+  const baseDays=calcThermal().days;
+
+  const tests=[
+    {label:'지하깊이 +2m',  paramEl:'s-depth', delta:+2},
+    {label:'벽두께 +0.5m',  paramEl:'s-wall',  delta:+0.5},
+    {label:'왕겨 +20cm',    paramEl:'s-hull',  delta:+20},
+    {label:'흙덮개 +50cm',  paramEl:'s-soil',  delta:+50},
+    {label:'환기공 3개 최적', paramEl:'s-vent', fixedVal:3},
+  ];
+
+  const results=tests.map(t=>{
+    const el=document.getElementById(t.paramEl);
+    const orig=parseFloat(el.value);
+    el.value=t.fixedVal!==undefined?t.fixedVal:orig+t.delta;
+    const d=calcThermal().days;
+    el.value=orig;
+    return {label:t.label, diff:d-baseDays};
+  });
+
+  const maxDiff=Math.max(...results.map(r=>Math.abs(r.diff)),10);
+  const pad={l:115,r:16,t:16,b:24};
+  const cw=W-pad.l-pad.r, ch=220-pad.t-pad.b;
+  const barH=ch/results.length*0.55;
+
+  results.forEach((r,i)=>{
+    const y=pad.t+i*(ch/results.length)+(ch/results.length-barH)/2;
+    const bw=Math.abs(r.diff)/maxDiff*(cw/2-4);
+    const cx2=pad.l+cw/2;
+    ctx.fillStyle='#8b949e'; ctx.font='11px sans-serif'; ctx.textAlign='right';
+    ctx.fillText(r.label,pad.l-6,y+barH/2+4);
+    ctx.fillStyle=r.diff>=0?'#3fb950':'#f85149';
+    if(r.diff>=0) ctx.fillRect(cx2,y,bw,barH);
+    else ctx.fillRect(cx2-bw,y,bw,barH);
+    ctx.fillStyle='#e6edf3'; ctx.textAlign='left';
+    ctx.fillText(`${r.diff>=0?'+':''}${Math.round(r.diff)}일`,cx2+bw+4,y+barH/2+4);
+  });
+
+  ctx.strokeStyle='#30363d'; ctx.lineWidth=1;
+  ctx.beginPath();
+  ctx.moveTo(pad.l+cw/2,pad.t); ctx.lineTo(pad.l+cw/2,pad.t+ch); ctx.stroke();
+  ctx.fillStyle='#6e7681'; ctx.font='10px sans-serif'; ctx.textAlign='center';
+  ctx.fillText('현재 대비 보존일 변화 (파라미터 단독 개선)',pad.l+cw/2,215);
+  ctx.textAlign='left';
+}
+
+function switchTab(id,btn){
+  document.querySelectorAll('.tab-content').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  btn.classList.add('active');
+  if(id==='tab-compare') drawCompare();
+}
+
+function resetDefaults(){
+  const defs={'s-depth':3,'s-wall':1.0,'s-vol':200,'s-arch':0.45,'s-vent':3,'s-hull':15,'s-soil':80,'s-icetemp':-3,'s-region':1};
+  Object.entries(defs).forEach(([id,v])=>{ document.getElementById(id).value=v; });
+  Object.keys(paramDefs).forEach(k=>{
+    const p=paramDefs[k];
+    document.getElementById(p.lbl).textContent=p.fmt(document.getElementById(p.el).value);
+  });
+  simulate();
+}
+
+window.addEventListener('resize',()=>simulate());
+simulate();
+</script>
+</body>
+</html>
