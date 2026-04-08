@@ -324,6 +324,7 @@ const paramDefs = {
   hull:    {el:'s-hull',    lbl:'v-hull',     fmt:v=>`${v} cm`},
   soil:    {el:'s-soil',    lbl:'v-soil',     fmt:v=>`${v} cm`},
   icetemp: {el:'s-icetemp', lbl:'v-icetemp',  fmt:v=>`${v>=0?'+':''}${v} °C`},
+  region:  {el:'s-region',  lbl:'v-region',   fmt:v=>REGIONS[v].name},
   wind:    {el:'s-wind',    lbl:'v-wind',     fmt:v=>`${parseFloat(v).toFixed(1)} m/s`},
   humidity:{el:'s-humidity',lbl:'v-humidity', fmt:v=>`${v} %`},
 };
