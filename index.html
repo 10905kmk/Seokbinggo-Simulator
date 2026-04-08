@@ -91,6 +91,30 @@
   button:hover { background:var(--border); }
   button.primary { background:var(--accent); color:#0d1117; border-color:var(--accent); }
   button.primary:hover { background:var(--accent2); }
+
+  /* 드롭다운 스타일 추가 */
+  .custom-select {
+    width: 100%;
+    padding: 8px 12px;
+    background: var(--surface2);
+    color: var(--accent2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-size: 0.9rem;
+    font-weight: 700;
+    font-family: inherit;
+    outline: none;
+    cursor: pointer;
+    appearance: none;
+    -webkit-appearance: none;
+  }
+  .custom-select:focus {
+    border-color: var(--accent);
+  }
+  .custom-select option {
+    color: var(--text);
+    background: var(--surface);
+  }
 </style>
 </head>
 <body>
@@ -165,8 +189,14 @@
       </div>
 
       <div class="param-row">
-        <div class="param-top"><span class="param-name">지역 (여름 기후 기준)</span><span class="param-value" id="v-region">서울</span></div>
-        <input type="range" id="s-region" min="0" max="4" step="1" value="1">
+        <div class="param-top"><span class="param-name">지역 (여름 기후 기준)</span></div>
+        <select id="s-region" class="custom-select">
+          <option value="0">평양</option>
+          <option value="1" selected>서울</option>
+          <option value="2">대전</option>
+          <option value="3">경주</option>
+          <option value="4">안동</option>
+        </select>
       </div>
 
       <div class="param-row" style="margin-top: 12px; border-top: 1px dashed var(--border); padding-top: 12px;">
@@ -294,7 +324,6 @@ const paramDefs = {
   hull:    {el:'s-hull',    lbl:'v-hull',     fmt:v=>`${v} cm`},
   soil:    {el:'s-soil',    lbl:'v-soil',     fmt:v=>`${v} cm`},
   icetemp: {el:'s-icetemp', lbl:'v-icetemp',  fmt:v=>`${v>=0?'+':''}${v} °C`},
-  region:  {el:'s-region',  lbl:'v-region',   fmt:v=>REGIONS[v].name},
   wind:    {el:'s-wind',    lbl:'v-wind',     fmt:v=>`${parseFloat(v).toFixed(1)} m/s`},
   humidity:{el:'s-humidity',lbl:'v-humidity', fmt:v=>`${v} %`},
 };
